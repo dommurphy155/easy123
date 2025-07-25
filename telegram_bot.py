@@ -1,15 +1,14 @@
 import logging
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from config import config
-from utils import send_system_report
-
-
+from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
 )
+from config import config
+from utils import send_system_report
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +67,7 @@ class TelegramJobBot:
             lines.append(f"🧰 *{job['title']}* @ {job['company']}\n"
                          f"📍 {job['location']}\n"
                          f"💷 Salary: {job.get('salary_text', 'N/A')}\n"
-                         f"🔗 [Job Link](https://www.indeed.com{job['url']})\n"
+                         f"🔗 [Job Link]({job['url']})\n"
                          f"🔎 Relevance Score: {job.get('cv_score', 0):.2f}\n")
         return "\n\n".join(lines)
 
@@ -93,12 +92,12 @@ class TelegramJobBot:
             # Stub auto-apply logic
             success = await self.auto_apply(job_url)
             if success:
-                # mark_job_as_accepted(job_url) # This line was removed as per edit hint
+                # Removed marking job as accepted per instructions
                 await query.edit_message_text("🎉 Successfully applied! Good luck!")
             else:
                 await query.edit_message_text(f"⚠️ Auto-apply failed. Here’s the link to apply manually:\n{job_url}")
         elif action == "decline":
-            # mark_job_as_declined(job_url) # This line was removed as per edit hint
+            # Removed marking job as declined per instructions
             await query.edit_message_text("🗑️ Job declined and removed.")
 
     async def auto_apply(self, job_url):
