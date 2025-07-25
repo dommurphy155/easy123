@@ -33,6 +33,12 @@ class Config:
     # Maximum number of jobs to scrape per run
     MAX_JOBS_PER_SCRAPE: int = 25
 
+    # Batch size for jobs sent to Telegram
+    JOB_BATCH_SIZE: int = int(os.getenv("JOB_BATCH_SIZE", "5"))
+
+    # Delay between scrapes or processing items (seconds)
+    SCRAPE_DELAY_SECONDS: float = float(os.getenv("SCRAPE_DELAY_SECONDS", "1.0"))
+
     # Timing (UK local times in 24h format HH:MM)
     SCRAPE_TIMES: list[str] = os.getenv("SCRAPE_TIMES", "08:30,13:45,17:00").split(",")
     SEND_TIMES: list[str] = os.getenv("SEND_TIMES", "09:00,18:00,21:00").split(",")
