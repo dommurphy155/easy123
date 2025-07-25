@@ -1,7 +1,6 @@
 import os
 import ast
 import subprocess
-import shutil
 from pathlib import Path
 from datetime import datetime
 
@@ -20,11 +19,6 @@ def find_py_files(base_dir="."):
     ]
     _log(f"🔍 Found {len(files)} Python files to scan.")
     return files
-
-def backup_file(file_path):
-    backup_path = file_path.with_suffix(file_path.suffix + ".bak")
-    shutil.copy2(file_path, backup_path)
-    _log(f"💾 Backup created: {backup_path}")
 
 def _is_importable(module):
     if module in _import_cache:
@@ -60,7 +54,7 @@ def fix_imports(file_path):
     except Exception as e:
         _log(f"❌ Skipping broken file {file_path}: {e}")
         print(f"❌ Could not parse AST: {e}")
-        return
+        return False
 
     imports = [node for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))]
     fixed_lines = []
@@ -101,12 +95,12 @@ def fix_imports(file_path):
     non_imports = [line for line in source.splitlines(keepends=True) if not line.strip().startswith(("import ", "from "))]
     updated = fixed_lines + ["\n"] + non_imports
 
-    backup_file(file_path)
     with open(file_path, "w", encoding="utf-8") as f:
         f.writelines(updated)
 
     _log(f"✅ Fixed imports: {file_path}")
     print(f"✅ Done fixing imports for: {file_path}")
+    return True
 
 def _log(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -114,11 +108,34 @@ def _log(message):
         f.write(f"[{timestamp}] {message}\n")
     print(f"[{timestamp}] {message}")
 
+def git_commit_push():
+    print("\n🚀 Running git add, commit, and push...")
+    commit_message = f"🔁 Auto import fix on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    try:
+        subprocess.run(["git", "add", "."], check=True)
+        subprocess.run(["git", "commit", "-m", commit_message], check=True)
+        subprocess.run(["git", "push"], check=True)
+        print("✅ Git commit and push successful.")
+        _log("✅ Git commit and push successful.")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Git operation failed: {e}")
+        _log(f"❌ Git operation failed: {e}")
+
 def main():
     _log("🚀 Starting import fix scan...")
     py_files = find_py_files()
+    fixed_any = False
     for path in py_files:
-        fix_imports(path)
+        fixed = fix_imports(path)
+        if fixed:
+            fixed_any = True
+
+    if fixed_any:
+        git_commit_push()
+    else:
+        print("No files fixed, skipping git commit/push.")
+        _log("No files fixed, skipping git commit/push.")
+
     _log("🏁 All files processed.")
 
 if __name__ == "__main__":
