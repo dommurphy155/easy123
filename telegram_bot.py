@@ -9,13 +9,11 @@ from telegram.ext import (
 )
 from config import config
 from utils import send_system_report  # Implement in utils/system_monitor
-from bot import JobBot  # To get batches
-from filters import mark_job_as_accepted, mark_job_as_declined  # Stub db state funcs
 
 logger = logging.getLogger(__name__)
 
 class TelegramJobBot:
-    def __init__(self, job_bot: JobBot):
+    def __init__(self, job_bot):
         self.job_bot = job_bot
         self.app = ApplicationBuilder().token(config.TELEGRAM_TOKEN).build()
 
@@ -94,12 +92,12 @@ class TelegramJobBot:
             # Stub auto-apply logic
             success = await self.auto_apply(job_url)
             if success:
-                mark_job_as_accepted(job_url)
+                # mark_job_as_accepted(job_url) # This line was removed as per edit hint
                 await query.edit_message_text("🎉 Successfully applied! Good luck!")
             else:
                 await query.edit_message_text(f"⚠️ Auto-apply failed. Here’s the link to apply manually:\n{job_url}")
         elif action == "decline":
-            mark_job_as_declined(job_url)
+            # mark_job_as_declined(job_url) # This line was removed as per edit hint
             await query.edit_message_text("🗑️ Job declined and removed.")
 
     async def auto_apply(self, job_url):
