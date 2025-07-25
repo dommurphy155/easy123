@@ -1,8 +1,7 @@
-import asyncio
-import psutil
-import logging
 from datetime import datetime, timezone, timedelta
-from telegram_bot import TelegramJobBot
+import asyncio
+import logging
+
 
 
 

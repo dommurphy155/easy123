@@ -1,11 +1,7 @@
+from hf_ranker import HFMatcher
 import asyncio
 import logging
-import httpx
-from bs4 import BeautifulSoup
-from utils import load_json, chunk_list, async_sleep
-from filters import passes_filters
-from hf_ranker import HFMatcher
-from config import config, LEIGH_COORDINATES
+
 
 
 
@@ -22,7 +18,8 @@ class JobBot:
 
     async def scrape_indeed(self):
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
             "Accept-Language": "en-GB,en;q=0.9",
         }
         cookies_dict = {c['name']: c['value'] for c in self.cookies}
@@ -36,7 +33,8 @@ class JobBot:
         }
 
         try:
-            async with httpx.AsyncClient(cookies=cookies_dict, headers=headers, timeout=30) as client:
+            async with httpx.AsyncClient(cookies=cookies_dict, headers=headers
+, timeout=30) as client:
                 resp = await client.get(search_url, params=params)
                 resp.raise_for_status()
         except Exception as e:
@@ -62,7 +60,8 @@ class JobBot:
                 "job_type": job_type.text.strip() if job_type else "",
                 "latitude": LEIGH_COORDINATES["lat"],
                 "longitude": LEIGH_COORDINATES["lon"],
-                "url": f"https://uk.indeed.com{link_tag.get('href')}" if link_tag and link_tag.get("href") else None,
+                "url": f"https://uk.indeed.com{link_tag.get('href')}" if
+link_tag and link_tag.get("href") else None,
             }
             jobs.append(job)
             if len(jobs) >= config.MAX_JOBS_PER_SCRAPE:
@@ -77,7 +76,8 @@ class JobBot:
             if job.get("salary_text"):
                 s = job["salary_text"].lower()
                 try:
-                    val = float(''.join(filter(lambda c: c.isdigit() or c == '.', s)))
+                    val = float(''.join(filter(lambda c: c.isdigit() or c ==
+'.', s)))
                     if "hour" in s:
                         salary_hourly = val
                     elif "year" in s or "annum" in s:
@@ -85,14 +85,16 @@ class JobBot:
                 except Exception:
                     pass
 
-            cv_score = self.hf_matcher.score(self.cv_text, f"{job['title']} {job['company']} {job['location']}")
+            cv_score = self.hf_matcher.score(self.cv_text, f"{job['title']}
+{job['company']} {job['location']}")
             job.update({
                 "cv_score": cv_score,
                 "salary_hourly": salary_hourly,
                 "salary_yearly": salary_yearly,
             })
 
-            if not passes_filters(job, cv_score, LEIGH_COORDINATES["lat"], LEIGH_COORDINATES["lon"]):
+            if not passes_filters(job, cv_score, LEIGH_COORDINATES["lat"],
+LEIGH_COORDINATES["lon"]):
                 continue
 
             filtered.append(job)

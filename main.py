@@ -1,10 +1,8 @@
 import asyncio
 import logging
-import signal
 import os
-from dotenv import load_dotenv
-from config import config
-from telegram_bot import TelegramJobBot
+import signal
+
 
 
 

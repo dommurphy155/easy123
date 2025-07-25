@@ -1,15 +1,17 @@
-import os
-import ast
-import subprocess
-import shutil
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+import ast
+import os
+import shutil
+import subprocess
+
 
 
 
 # -------------------- SETTINGS --------------------
 REPO_DIR = Path(__file__).resolve().parent
-GIT_COMMIT_MSG = f"🧹 Auto-import fixer run on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+GIT_COMMIT_MSG = f"🧹 Auto-import fixer run on
+{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 FILE_EXTENSIONS = [".py"]
 EXCLUDED_FILES = {"__init__.py", "venv", "env"}
 # --------------------------------------------------
@@ -20,7 +22,8 @@ def log(msg):
 
 def is_importable(module_path):
     try:
-        subprocess.check_output(['python3', '-c', f'import {module_path}'], stderr=subprocess.STDOUT)
+        subprocess.check_output(['python3', '-c', f'import {module_path}'],
+stderr=subprocess.STDOUT)
         return True
     except subprocess.CalledProcessError:
         return False
@@ -43,13 +46,16 @@ def fix_imports(file_path: Path):
     changed = False
     for lineno, line in import_lines:
         stripped = line.strip()
-        test_line = stripped.replace("from ", "").replace("import ", "").split(" ")[0]
+        test_line = stripped.replace("from ", "").replace("import ",
+"").split(" ")[0]
         test_line = test_line.split(".")[0]
         if is_importable(test_line):
             log(f"   ✅ Module '{test_line}' is importable")
         else:
-            log(f"   ❌ Module '{test_line}' is NOT importable\n   ⛔ Skipping import from: {test_line}")
-            fixed_lines[lineno - 1] = f"# {line}  # ⛔ commented out (not importable)"
+            log(f"   ❌ Module '{test_line}' is NOT importable\n   ⛔ Skipping
+import from: {test_line}")
+            fixed_lines[lineno - 1] = f"# {line}  # ⛔ commented out (not
+importable)"
             changed = True
 
     if changed:
@@ -73,7 +79,8 @@ def git_auto_commit_and_push():
     log("📤 Auto committing and pushing to GitHub...")
     try:
         subprocess.run(["git", "add", "."], check=True, cwd=REPO_DIR)
-        subprocess.run(["git", "commit", "-m", GIT_COMMIT_MSG], check=True, cwd=REPO_DIR)
+        subprocess.run(["git", "commit", "-m", GIT_COMMIT_MSG], check=True,
+cwd=REPO_DIR)
         subprocess.run(["git", "push"], check=True, cwd=REPO_DIR)
         log("✅ Pushed to GitHub successfully.")
     except subprocess.CalledProcessError as e:
@@ -98,4 +105,4 @@ if __name__ == "__main__":
         git_auto_commit_and_push()
     else:
         log("⚠️ No changes detected. Skipping Git push.")
-    
+
