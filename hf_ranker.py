@@ -1,67 +1,99 @@
 import os
-import pickle
-import logging
-import torch
-import torch.nn.functional as F
-from transformers import AutoTokenizer, AutoModel
+import ast
+import subprocess
+import shutil
+from pathlib import Path
+from datetime import datetime
 
-CACHE_FILE = "hf_cache.pkl"
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+# -------------------- SETTINGS --------------------
+REPO_DIR = Path(__file__).resolve().parent
+GIT_COMMIT_MSG = f"🧹 Auto-import fixer run on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+FILE_EXTENSIONS = [".py"]
+EXCLUDED_FILES = {"__init__.py", "venv", "env"}
+# --------------------------------------------------
 
-class HFMatcher:
-    def __init__(self, model_name=MODEL_NAME):
-        self.model_name = model_name
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModel.from_pretrained(model_name).to(self.device)
-            self.model.eval()
-        except Exception as e:
-            logging.error(f"[HFMatcher] Model load failed: {e}")
-            raise RuntimeError("Transformer model failed to load.")
+def log(msg):
+    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    print(f"{timestamp} {msg}")
 
-        self.cache = self._load_cache()
+def is_importable(module_path):
+    try:
+        subprocess.check_output(['python3', '-c', f'import {module_path}'], stderr=subprocess.STDOUT)
+        return True
+    except subprocess.CalledProcessError:
+        return False
 
-    def _load_cache(self):
-        if os.path.exists(CACHE_FILE):
-            try:
-                with open(CACHE_FILE, "rb") as f:
-                    return pickle.load(f)
-            except Exception as e:
-                logging.warning(f"[HFMatcher] Failed loading cache: {e}")
-        return {}
+def fix_imports(file_path: Path):
+    if file_path.name in EXCLUDED_FILES:
+        return False
 
-    def _save_cache(self):
-        try:
-            with open(CACHE_FILE, "wb") as f:
-                pickle.dump(self.cache, f)
-        except Exception as e:
-            logging.warning(f"[HFMatcher] Failed saving cache: {e}")
+    with open(file_path, "r") as f:
+        original_code = f.read()
 
-    def embed(self, text: str):
-        if text in self.cache:
-            return self.cache[text]
+    tree = ast.parse(original_code)
+    import_lines = []
+    for node in tree.body:
+        if isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom):
+            line = original_code.splitlines()[node.lineno - 1]
+            import_lines.append((node.lineno, line.strip()))
 
-        try:
-            encoded = self.tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(self.device)
-            with torch.no_grad():
-                output = self.model(**encoded)
-                cls_embedding = output.last_hidden_state[:, 0, :]
-                norm_embedding = F.normalize(cls_embedding, p=2, dim=1).cpu().numpy()[0]
-        except Exception as e:
-            logging.error(f"[HFMatcher] Embedding failed: {e}")
-            raise RuntimeError("Embedding generation failed.")
+    fixed_lines = original_code.splitlines()
+    changed = False
+    for lineno, line in import_lines:
+        stripped = line.strip()
+        test_line = stripped.replace("from ", "").replace("import ", "").split(" ")[0]
+        test_line = test_line.split(".")[0]
+        if is_importable(test_line):
+            log(f"   ✅ Module '{test_line}' is importable")
+        else:
+            log(f"   ❌ Module '{test_line}' is NOT importable\n   ⛔ Skipping import from: {test_line}")
+            fixed_lines[lineno - 1] = f"# {line}  # ⛔ commented out (not importable)"
+            changed = True
 
-        self.cache[text] = norm_embedding
-        self._save_cache()
-        return norm_embedding
+    if changed:
+        backup_path = file_path.with_suffix(file_path.suffix + ".bak")
+        shutil.copy(file_path, backup_path)
+        with open(file_path, "w") as f:
+            f.write("\n".join(fixed_lines))
+        log(f"💾 Backup created: {backup_path.name}")
+        log(f"✅ Fixed imports: {file_path.name}")
+        return True
 
-    def score(self, cv_text: str, job_text: str) -> float:
-        try:
-            cv_vec = self.embed(cv_text)
-            job_vec = self.embed(job_text)
-            score = float(F.cosine_similarity(torch.tensor(cv_vec), torch.tensor(job_vec), dim=0).item())
-            return round(score, 4)
-        except Exception as e:
-            logging.error(f"[HFMatcher] Scoring failed: {e}")
-            return 0.0
+    return False
+
+def get_all_python_files(root_dir: Path):
+    return [
+        file for file in root_dir.rglob("*.py")
+        if all(excl not in str(file) for excl in EXCLUDED_FILES)
+    ]
+
+def git_auto_commit_and_push():
+    log("📤 Auto committing and pushing to GitHub...")
+    try:
+        subprocess.run(["git", "add", "."], check=True, cwd=REPO_DIR)
+        subprocess.run(["git", "commit", "-m", GIT_COMMIT_MSG], check=True, cwd=REPO_DIR)
+        subprocess.run(["git", "push"], check=True, cwd=REPO_DIR)
+        log("✅ Pushed to GitHub successfully.")
+    except subprocess.CalledProcessError as e:
+        log(f"❌ Git push failed: {e}")
+
+# -------------------- MAIN --------------------
+if __name__ == "__main__":
+    log("🚀 Starting import fix scan...")
+    py_files = get_all_python_files(REPO_DIR)
+    log(f"🔍 Found {len(py_files)} Python files to scan.\n")
+
+    files_changed = 0
+    for file in py_files:
+        log(f"📄 Scanning file: {file.name}")
+        if fix_imports(file):
+            files_changed += 1
+            log(f"✅ Done fixing imports for: {file.name}\n")
+
+    log("🏁 All files processed.")
+
+    if files_changed > 0:
+        git_auto_commit_and_push()
+    else:
+        log("⚠️ No changes detected. Skipping Git push.")
+    
