@@ -7,7 +7,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,
 )
-from config import TELEGRAM_TOKEN
+from config import config
 from utils import send_system_report  # Implement in utils/system_monitor
 from bot import JobBot  # To get batches
 from filters import mark_job_as_accepted, mark_job_as_declined  # Stub db state funcs
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class TelegramJobBot:
     def __init__(self, job_bot: JobBot):
         self.job_bot = job_bot
-        self.app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+        self.app = ApplicationBuilder().token(config.TELEGRAM_TOKEN).build()
 
         self.app.add_handler(CommandHandler("start", self.start))
         self.app.add_handler(CommandHandler("help", self.help))
