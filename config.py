@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from typing import Optional
 
-
 load_dotenv()
 
 class Config:
@@ -11,7 +10,7 @@ class Config:
     TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
 
     # Hugging Face API
-    HF_API_TOKEN: str = os.getenv("HF_API_TOKEN", "")
+    HF_API_TOKEN: str = os.getenv("HF_API_KEY", "")  # Match .env key exactly
     HF_MODEL: str = os.getenv("HF_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
     # Scraping
@@ -31,6 +30,9 @@ class Config:
     CV_FILEPATH: str = os.getenv("CV_FILEPATH", "assets/cv.pdf")
     CV_TEXTFILEPATH: Optional[str] = os.getenv("CV_TEXTFILEPATH")
 
+    # Indeed cookies path for auto apply
+    INDEED_COOKIES_PATH: str = os.getenv("INDEED_COOKIES_PATH", "cookies.json")
+
     # Maximum number of jobs to scrape per run
     MAX_JOBS_PER_SCRAPE: int = 25
 
@@ -47,12 +49,13 @@ class Config:
     # Monitoring
     SYSTEM_REPORT_INTERVAL_HOURS: int = int(os.getenv("SYSTEM_REPORT_INTERVAL_HOURS", "5"))
 
-    # Others
+    # Debug flag
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
+
 
 config = Config()
 
-# Hardcoded coordinates for Leigh (WN7 1NX) — centerpoint for job filtering
+# Hardcoded coordinates for Leigh (WN7 1NX) — center point for job filtering
 LEIGH_COORDINATES = {
     "lat": 53.4975,
     "lon": -2.5196,
