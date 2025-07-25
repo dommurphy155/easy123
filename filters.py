@@ -1,5 +1,6 @@
 import math
 
+
 # Constants — tweak these in config.py later for flexibility
 MAX_DISTANCE_MILES = 5
 MIN_SALARY_PER_HOUR = 11

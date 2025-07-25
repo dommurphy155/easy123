@@ -1,14 +1,14 @@
 import logging
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
+from config import config
+from utils import send_system_report
+
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
 )
-from config import config
-from utils import send_system_report  # Implement in utils/system_monitor
 
 logger = logging.getLogger(__name__)
 

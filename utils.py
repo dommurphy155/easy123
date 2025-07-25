@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, List, Optional
 import psutil
 
+
 def load_json(filepath: str) -> Optional[Any]:
     if not os.path.exists(filepath):
         return None

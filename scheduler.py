@@ -2,8 +2,9 @@ import asyncio
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 import logging
+from telegram_bot import TelegramJobBot
 
-from telegram_bot import TelegramJobBot  # send jobs interface
+
 
 logger = logging.getLogger(__name__)
 UK_TZ = ZoneInfo("Europe/London")

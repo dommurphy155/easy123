@@ -7,6 +7,7 @@ from filters import passes_filters
 from hf_ranker import HFMatcher
 from config import config, LEIGH_COORDINATES
 
+
 logger = logging.getLogger(__name__)
 
 class JobBot:

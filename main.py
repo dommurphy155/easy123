@@ -3,11 +3,10 @@ import logging
 import signal
 import os
 from dotenv import load_dotenv
-
 from config import config
 from telegram_bot import TelegramJobBot
-from scheduler import start_scheduler
-from system_monitor import start_system_monitor
+
+
 
 # Load .env variables if present (local dev)
 load_dotenv()

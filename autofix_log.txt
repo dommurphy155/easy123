@@ -1,0 +1,12 @@
+[2025-07-25 20:46:51] 🚀 Starting import fix scan...
+[2025-07-25 20:46:53] 🔍 Found 10 Python files to scan.
+[2025-07-25 20:46:53] ✅ Fixed imports: filters.py
+[2025-07-25 20:46:56] ✅ Fixed imports: system_monitor.py
+[2025-07-25 20:46:58] ✅ Fixed imports: bot.py
+[2025-07-25 20:46:58] ✅ Fixed imports: utils.py
+[2025-07-25 20:46:59] ✅ Fixed imports: telegram_bot.py
+[2025-07-25 20:46:59] ✅ Fixed imports: config.py
+[2025-07-25 20:46:59] ✅ Fixed imports: main.py
+[2025-07-25 20:47:00] ✅ Fixed imports: hf_ranker.py
+[2025-07-25 20:47:00] ✅ Fixed imports: scheduler.py
+[2025-07-25 20:47:00] ✅ Fixed imports: auto_import_fixer.py
