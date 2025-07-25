@@ -3,10 +3,6 @@ from zoneinfo import ZoneInfo
 import asyncio
 import logging
 
-
-
-
-
 logger = logging.getLogger(__name__)
 UK_TZ = ZoneInfo("Europe/London")
 
@@ -17,7 +13,7 @@ SEND_TIMES = [time(9, 0), time(18, 0), time(21, 0)]
 async def wait_until(target_time: time):
     now = datetime.now(UK_TZ)
     target_dt = now.replace(hour=target_time.hour, minute=target_time.minute,
-second=0, microsecond=0)
+                           second=0, microsecond=0)
     if target_dt <= now:
         target_dt += timedelta(days=1)
     wait_seconds = (target_dt - now).total_seconds()
@@ -36,8 +32,7 @@ async def schedule_task(task_func, schedule_times):
         try:
             await task_func()
         except Exception as e:
-            logger.error(f"Error running scheduled task {task_func.__name__}:
-{e}")
+            logger.error(f"Error running scheduled task {task_func.__name__}: {e}")
 
 async def scrape_task():
     logger.info("Starting scrape task")
