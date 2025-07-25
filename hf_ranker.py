@@ -5,9 +5,11 @@ import os
 import shutil
 import subprocess
 
+
 # -------------------- SETTINGS --------------------
 REPO_DIR = Path(__file__).resolve().parent
-GIT_COMMIT_MSG = f"🧹 Auto-import fixer run on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+GIT_COMMIT_MSG = f"🧹 Auto-import fixer run on
+{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 FILE_EXTENSIONS = [".py"]
 EXCLUDED_FILES = {"__init__.py", "venv", "env"}
 # --------------------------------------------------
@@ -34,7 +36,8 @@ def fix_imports(file_path: Path):
     try:
         tree = ast.parse(original_code)
     except SyntaxError as e:
-        log(f"❌ Syntax error parsing {file_path.name} line {e.lineno}: {e.msg}")
+        log(f"❌ Syntax error parsing {file_path.name} line {e.lineno}:
+{e.msg}")
         return False
 
     import_lines = []
@@ -50,13 +53,16 @@ def fix_imports(file_path: Path):
     changed = False
     for lineno, line in import_lines:
         stripped = line.strip()
-        test_line = stripped.replace("from ", "").replace("import ", "").split(" ")[0]
+        test_line = stripped.replace("from ", "").replace("import ",
+"").split(" ")[0]
         test_line = test_line.split(".")[0]
         if is_importable(test_line):
             log(f"   ✅ Module '{test_line}' is importable")
         else:
-            log(f"   ❌ Module '{test_line}' is NOT importable\n   ⛔ Skipping import from: {test_line}")
-            fixed_lines[lineno - 1] = f"# {line}  # ⛔ commented out (not importable)"
+            log(f"   ❌ Module '{test_line}' is NOT importable\n   ⛔ Skipping
+import from: {test_line}")
+            fixed_lines[lineno - 1] = f"# {line}  # ⛔ commented out (not
+importable)"
             changed = True
 
     if changed:
@@ -80,7 +86,8 @@ def git_auto_commit_and_push():
     log("📤 Auto committing and pushing to GitHub...")
     try:
         subprocess.run(["git", "add", "."], check=True, cwd=REPO_DIR)
-        subprocess.run(["git", "commit", "-m", GIT_COMMIT_MSG], check=True, cwd=REPO_DIR)
+        subprocess.run(["git", "commit", "-m", GIT_COMMIT_MSG], check=True,
+cwd=REPO_DIR)
         subprocess.run(["git", "push"], check=True, cwd=REPO_DIR)
         log("✅ Pushed to GitHub successfully.")
     except subprocess.CalledProcessError as e:

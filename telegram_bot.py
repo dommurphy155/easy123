@@ -1,14 +1,14 @@
-import logging
-import asyncio
+from config import config
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
+from utils import send_system_report
+import asyncio
+import logging
+
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
 )
-from config import config
-from utils import send_system_report
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,8 @@ class TelegramJobBot:
         self.app.add_handler(CallbackQueryHandler(self.button_handler))
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text("Welcome to Easy123 JobBot! Use /sendjobs to get the latest jobs.")
+        await update.message.reply_text("Welcome to Easy123 JobBot! Use
+/sendjobs to get the latest jobs.")
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         help_text = (
@@ -39,7 +40,8 @@ class TelegramJobBot:
 
     async def status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Example placeholder, expand with real stats
-        status_msg = "System Status:\nJobs queued: {}\nCPU usage: --%\nMemory usage: --%".format(len(self.job_bot.jobs))
+        status_msg = "System Status:\nJobs queued: {}\nCPU usage: --%\nMemory
+usage: --%".format(len(self.job_bot.jobs))
         await update.message.reply_text(status_msg)
 
     async def report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -47,10 +49,12 @@ class TelegramJobBot:
         report = await send_system_report()
         await update.message.reply_text(report)
 
-    async def send_jobs(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def send_jobs(self, update: Update, context:
+ContextTypes.DEFAULT_TYPE):
         batches = await self.job_bot.get_job_batches()
         if not batches:
-            await update.message.reply_text("No jobs found right now. Try again later.")
+            await update.message.reply_text("No jobs found right now. Try again
+ later.")
             return
 
         for batch in batches:
@@ -65,22 +69,25 @@ class TelegramJobBot:
         lines = []
         for i, job in enumerate(jobs, 1):
             lines.append(f"🧰 *{job['title']}* @ {job['company']}\n"
-                         f"📍 {job['location']}\n"
-                         f"💷 Salary: {job.get('salary_text', 'N/A')}\n"
-                         f"🔗 [Job Link]({job['url']})\n"
-                         f"🔎 Relevance Score: {job.get('cv_score', 0):.2f}\n")
+                        f"📍 {job['location']}\n"
+                        f"💷 Salary: {job.get('salary_text', 'N/A')}\n"
+                        f"🔗 [Job Link]({job['url']})\n"
+                        f"🔎 Relevance Score: {job.get('cv_score', 0):.2f}\n")
         return "\n\n".join(lines)
 
     def make_inline_keyboard(self, jobs):
         buttons = []
         for job in jobs:
             buttons.append([
-                InlineKeyboardButton(f"✅ Accept {job['title'][:20]}", callback_data=f"accept|{job['url']}"),
-                InlineKeyboardButton(f"❌ Decline {job['title'][:20]}", callback_data=f"decline|{job['url']}"),
+                InlineKeyboardButton(f"✅ Accept {job['title'][:20]}",
+callback_data=f"accept|{job['url']}"),
+                InlineKeyboardButton(f"❌ Decline {job['title'][:20]}",
+callback_data=f"decline|{job['url']}"),
             ])
         return InlineKeyboardMarkup(buttons)
 
-    async def button_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def button_handler(self, update: Update, context:
+ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
         data = query.data.split("|")
@@ -93,9 +100,11 @@ class TelegramJobBot:
             success = await self.auto_apply(job_url)
             if success:
                 # Removed marking job as accepted per instructions
-                await query.edit_message_text("🎉 Successfully applied! Good luck!")
+                await query.edit_message_text("🎉 Successfully applied! Good
+luck!")
             else:
-                await query.edit_message_text(f"⚠️ Auto-apply failed. Here’s the link to apply manually:\n{job_url}")
+                await query.edit_message_text(f"⚠️ Auto-apply failed. Here’s
+the link to apply manually:\n{job_url}")
         elif action == "decline":
             # Removed marking job as declined per instructions
             await query.edit_message_text("🗑️ Job declined and removed.")

@@ -9,6 +9,7 @@ import os
 
 
 
+
 def load_json(filepath: str) -> Optional[Any]:
     if not os.path.exists(filepath):
         return None
