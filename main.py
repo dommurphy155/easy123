@@ -4,7 +4,7 @@ import signal
 import os
 from dotenv import load_dotenv
 
-from config import Config
+from config import config
 from telegram_bot import TelegramJobBot
 from scheduler import start_scheduler
 from system_monitor import start_system_monitor
@@ -22,13 +22,12 @@ async def main():
     logger.info("Starting easy123 job bot")
 
     # Load config
-    config = Config()
+    # config = Config() # This line is removed as per the edit hint
 
     # Init Telegram bot instance
-    telegram_bot = TelegramJobBot(
-        token=config.TELEGRAM_TOKEN,
-        chat_id=config.TELEGRAM_CHAT_ID
-    )
+    # You must pass a job_bot instance to TelegramJobBot
+    # For now, pass None or a real JobBot instance if available
+    telegram_bot = TelegramJobBot(None)
 
     # Confirm connections/startup messages
     await telegram_bot.send_startup_message()
