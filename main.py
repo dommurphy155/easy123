@@ -8,6 +8,7 @@ from telegram_bot import TelegramJobBot
 
 
 
+
 # Load .env variables if present (local dev)
 load_dotenv()
 

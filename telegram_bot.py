@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from config import config
 from utils import send_system_report
 
-from telegram.ext import (
+
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,

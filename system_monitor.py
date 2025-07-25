@@ -6,6 +6,7 @@ from telegram_bot import TelegramJobBot
 
 
 
+
 logger = logging.getLogger(__name__)
 
 CPU_THRESHOLD = 85.0  # Percent CPU usage to trigger alert
