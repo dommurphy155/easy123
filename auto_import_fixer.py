@@ -1,11 +1,10 @@
+#!/usr/bin/env python3
 from datetime import datetime
 from pathlib import Path
 import ast
 import os
 import re
 import subprocess
-
-#!/usr/bin/env python3
 
 ROOT_DIR = Path(os.getcwd())
 LOG_FILE = ROOT_DIR / "autofix_log.txt"
@@ -35,13 +34,11 @@ def _log(message):
 def find_py_files(base_dir="."):
     files = []
     for root, _, filenames in os.walk(base_dir):
-        # Skip hidden dirs, venvs, site-packages, and anything with "venv" or
-"site-packages" in path
         parts = Path(root).parts
+        # Skip hidden dirs, venvs, site-packages, __pycache__, env folders
         if any(part.startswith('.') for part in parts):
             continue
-        if any(part in ('venv', 'env', '__pycache__', 'site-packages') for part
- in parts):
+        if any(part in ('venv', 'env', '__pycache__', 'site-packages') for part in parts):
             continue
         for file in filenames:
             if file.startswith('.'):
@@ -134,8 +131,7 @@ def fix_indentation_errors(source):
         stripped = line.lstrip()
         leading_spaces = len(line) - len(stripped)
         corrected_indent = (leading_spaces // INDENT_SIZE) * INDENT_SIZE
-        fixed_lines.append(INDENT_STR * (corrected_indent // INDENT_SIZE) +
-stripped)
+        fixed_lines.append(INDENT_STR * (corrected_indent // INDENT_SIZE) + stripped)
     _metrics["indentation_fixed"] += 1
     return "\n".join(fixed_lines) + "\n"
 
@@ -150,15 +146,12 @@ def fix_imports_and_formatting(file_path):
 
     source = read_file_with_fallback(file_path)
 
-    # Only parse .py files as Python code; for .txt, skip AST parse & import
-fixes
     if file_path.suffix == ".py":
         try:
             tree = ast.parse(source, filename=str(file_path))
         except SyntaxError as e:
             if "indent" in e.msg.lower():
-                _log(f"⚠️ Indentation error in {file_path} line {e.lineno}:
-trying auto-fix")
+                _log(f"⚠️ Indentation error in {file_path} line {e.lineno}: trying auto-fix")
                 print(f"⚠️ Indentation error detected, trying fix...")
 
                 fixed_source = fix_indentation_errors(source)
@@ -173,8 +166,7 @@ trying auto-fix")
                     print(f"❌ Could not fix indentation: {e2}")
                     return False
             else:
-                _log(f"❌ Syntax error in {file_path} line {e.lineno}:{e.offset}
- {e.msg}")
+                _log(f"❌ Syntax error in {file_path} line {e.lineno}:{e.offset} {e.msg}")
                 print(f"❌ Syntax error line {e.lineno}:{e.offset} - {e.msg}")
                 return False
         except Exception as e:
@@ -182,8 +174,7 @@ trying auto-fix")
             print(f"❌ Failed to parse AST: {e}")
             return False
 
-        imports = [node for node in ast.walk(tree) if isinstance(node,
-(ast.Import, ast.ImportFrom))]
+        imports = [node for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))]
         fixed_imports = []
         seen = set()
         imports_fixed_this_file = 0
@@ -206,17 +197,14 @@ trying auto-fix")
                 if mod and mod not in seen:
                     names = ', '.join(n.name for n in node.names)
                     if _is_importable(mod):
-                        fixed_imports.append(f"from {node.module} import
-{names}\n")
+                        fixed_imports.append(f"from {node.module} import {names}\n")
                         seen.add(mod)
                         imports_fixed_this_file += 1
 
         _metrics["imports_fixed"] += imports_fixed_this_file
 
-        lines = source.replace("\r\n", "\n").replace("\r",
-"\n").splitlines(keepends=True)
-        non_import_lines = [line.rstrip() + "\n" for line in lines if not
-line.lstrip().startswith(("import ", "from "))]
+        lines = source.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
+        non_import_lines = [line.rstrip() + "\n" for line in lines if not line.lstrip().startswith(("import ", "from "))]
 
         non_import_lines = normalize_indentation(non_import_lines)
 
@@ -236,10 +224,10 @@ line.lstrip().startswith(("import ", "from "))]
 
         original_content = "".join(lines)
         new_content = "".join(final_lines)
+
     else:
         # For non-python (.txt) just do indentation normalization
-        lines = source.replace("\r\n", "\n").replace("\r",
-"\n").splitlines(keepends=True)
+        lines = source.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
         normalized = normalize_indentation(lines)
         original_content = "".join(lines)
         new_content = "".join(normalized)
@@ -265,8 +253,7 @@ def git_commit_push():
         _log("No changes to commit.")
         return
 
-    commit_message = f"🔁 Auto import fix on {datetime.now().strftime('%Y-%m-%d
-%H:%M:%S')}"
+    commit_message = f"🔁 Auto import fix on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     try:
         subprocess.run(["git", "add", "."], check=True)
         subprocess.run(["git", "commit", "-m", commit_message], check=True)
@@ -298,21 +285,15 @@ def print_code_rating():
     big_files = _metrics["files_skipped_big"]
     big_file_score = 10 if big_files == 0 else max(10 - big_files, 1)
 
-    avg_score = (imp_score + indent_score + line_len_score + syntax_score +
-big_file_score) / 5
+    avg_score = (imp_score + indent_score + line_len_score + syntax_score + big_file_score) / 5
 
     print("\n📊 Code Quality Rating Summary:")
     print(f" - Files processed: {_metrics['files_processed']}")
-    print(f" - Imports fixed: {_metrics['imports_fixed']} (Import hygiene
-score: {imp_score}/10)")
-    print(f" - Indentation fixes: {_metrics['indentation_fixed']} (Indentation
-consistency score: {indent_score}/10)")
-    print(f" - Line length fixes: {_metrics['line_length_fixed']} (Line length
-adherence score: {line_len_score}/10)")
-    print(f" - Syntax errors fixed: {_metrics['syntax_errors_fixed']} (Syntax
-correctness score: {syntax_score}/10)")
-    print(f" - Large files skipped: {_metrics['files_skipped_big']} (File size
-safety score: {big_file_score}/10)")
+    print(f" - Imports fixed: {_metrics['imports_fixed']} (Import hygiene score: {imp_score}/10)")
+    print(f" - Indentation fixes: {_metrics['indentation_fixed']} (Indentation consistency score: {indent_score}/10)")
+    print(f" - Line length fixes: {_metrics['line_length_fixed']} (Line length adherence score: {line_len_score}/10)")
+    print(f" - Syntax errors fixed: {_metrics['syntax_errors_fixed']} (Syntax correctness score: {syntax_score}/10)")
+    print(f" - Large files skipped: {_metrics['files_skipped_big']} (File size safety score: {big_file_score}/10)")
     print(f"\n=> Average code quality score: {avg_score:.2f}/10")
 
     if avg_score >= 9:
