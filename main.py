@@ -2,60 +2,67 @@ import asyncio
 import logging
 import os
 import signal
+import sys
 
+from dotenv import load_dotenv
 
-
-
-
-
-
-
-# Load .env variables if present (local dev)
+# Load env variables from .env file
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+# Set up logging
+logger = logging.getLogger("easy123")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
+# Import bot modules
+try:
+    from telegram_bot import TelegramJobBot
+    from scheduler import start_scheduler
+    from system_monitor import start_system_monitor
+except ImportError as e:
+    logger.error(f"Missing dependency or import error: {e}")
+    sys.exit(1)
+
+
 async def main():
     logger.info("Starting easy123 job bot")
 
-    # Load config
-    # config = Config() # This line is removed as per the edit hint
-
-    # Init Telegram bot instance
-    # You must pass a job_bot instance to TelegramJobBot
-    # For now, pass None or a real JobBot instance if available
+    # Init Telegram bot (inject job bot instance if needed later)
     telegram_bot = TelegramJobBot(None)
 
-    # Confirm connections/startup messages
+    # Send initial "bot is live" message
     await telegram_bot.send_startup_message()
 
-    # Start scheduler and system monitor concurrently
+    # Start background tasks
     scheduler_task = asyncio.create_task(start_scheduler())
     monitor_task = asyncio.create_task(start_system_monitor(telegram_bot))
 
-    # Graceful shutdown on signals
-    loop = asyncio.get_running_loop()
+    # Wait for termination signal
     stop_event = asyncio.Event()
 
     def shutdown():
-        logger.info("Received stop signal, shutting down...")
+        logger.warning("Stop signal received. Shutting down...")
         stop_event.set()
 
-    loop.add_signal_handler(signal.SIGINT, shutdown)
-    loop.add_signal_handler(signal.SIGTERM, shutdown)
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, shutdown)
 
     await stop_event.wait()
 
-    logger.info("Cancelling tasks")
+    # Cancel running tasks
+    logger.info("Cancelling all tasks...")
     scheduler_task.cancel()
     monitor_task.cancel()
     await asyncio.gather(scheduler_task, monitor_task, return_exceptions=True)
 
-    logger.info("Bot shutdown complete")
+    logger.info("Bot shutdown complete.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logger.exception(f"Fatal error in main loop: {e}")
+        sys.exit(1)
