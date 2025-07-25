@@ -7,11 +7,10 @@ from datetime import datetime
 
 ROOT_DIR = Path(os.getcwd())
 LOG_FILE = ROOT_DIR / "autofix_log.txt"
-
 _import_cache = {}
 
 def find_py_files(base_dir="."):
-    return [
+    files = [
         Path(root) / file
         for root, _, files in os.walk(base_dir)
         for file in files
@@ -19,6 +18,8 @@ def find_py_files(base_dir="."):
         and "venv" not in root
         and "site-packages" not in root
     ]
+    _log(f"🔍 Found {len(files)} Python files to scan.")
+    return files
 
 def backup_file(file_path):
     backup_path = file_path.with_suffix(file_path.suffix + ".bak")
@@ -34,6 +35,10 @@ def _is_importable(module):
         stderr=subprocess.DEVNULL,
     )
     _import_cache[module] = (result.returncode == 0)
+    if _import_cache[module]:
+        print(f"   ✅ Module '{module}' is importable")
+    else:
+        print(f"   ❌ Module '{module}' is NOT importable")
     return _import_cache[module]
 
 def _fix_relative_import(node, file_path):
@@ -41,10 +46,12 @@ def _fix_relative_import(node, file_path):
         prefix = "." * node.level
         mod = node.module or ""
         names = ', '.join(n.name for n in node.names)
+        print(f"   🔄 Found relative import: from {prefix}{mod} import {names}")
         return f"from {prefix}{mod} import {names}\n"
     return None
 
 def fix_imports(file_path):
+    print(f"\n📄 Scanning file: {file_path}")
     with open(file_path, "r", encoding="utf-8") as f:
         source = f.read()
 
@@ -52,6 +59,7 @@ def fix_imports(file_path):
         tree = ast.parse(source, filename=str(file_path))
     except Exception as e:
         _log(f"❌ Skipping broken file {file_path}: {e}")
+        print(f"❌ Could not parse AST: {e}")
         return
 
     imports = [node for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))]
@@ -68,17 +76,27 @@ def fix_imports(file_path):
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     mod = alias.name.split('.')[0]
-                    if mod not in seen and _is_importable(mod):
-                        fixed_lines.append(f"import {alias.name}\n")
-                        seen.add(mod)
+                    if mod not in seen:
+                        print(f"→ Trying: import {alias.name}")
+                        if _is_importable(mod):
+                            fixed_lines.append(f"import {alias.name}\n")
+                            seen.add(mod)
+                        else:
+                            print(f"   ⛔ Skipping import: {alias.name}")
+
             elif isinstance(node, ast.ImportFrom):
                 mod = node.module.split('.')[0] if node.module else ""
-                if mod and mod not in seen and _is_importable(mod):
+                if mod and mod not in seen:
                     names = ', '.join(n.name for n in node.names)
-                    fixed_lines.append(f"from {node.module} import {names}\n")
-                    seen.add(mod)
+                    print(f"→ Trying: from {node.module} import {names}")
+                    if _is_importable(mod):
+                        fixed_lines.append(f"from {node.module} import {names}\n")
+                        seen.add(mod)
+                    else:
+                        print(f"   ⛔ Skipping import from: {node.module}")
         except Exception as e:
             _log(f"⚠️ Skipped import in {file_path}: {e}")
+            print(f"⚠️ Error processing import: {e}")
 
     non_imports = [line for line in source.splitlines(keepends=True) if not line.strip().startswith(("import ", "from "))]
     updated = fixed_lines + ["\n"] + non_imports
@@ -88,6 +106,7 @@ def fix_imports(file_path):
         f.writelines(updated)
 
     _log(f"✅ Fixed imports: {file_path}")
+    print(f"✅ Done fixing imports for: {file_path}")
 
 def _log(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -96,11 +115,11 @@ def _log(message):
     print(f"[{timestamp}] {message}")
 
 def main():
-    _log("🔎 Starting import fix scan...")
+    _log("🚀 Starting import fix scan...")
     py_files = find_py_files()
     for path in py_files:
         fix_imports(path)
-    _log("✅ All done.")
+    _log("🏁 All files processed.")
 
 if __name__ == "__main__":
     main()
