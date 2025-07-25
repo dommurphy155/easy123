@@ -1,25 +1,19 @@
-import os
-import json
+import psutil
 import asyncio
-from datetime import datetime, timezone
 
-def load_json(filepath):
-    if not os.path.exists(filepath):
-        return None
-    with open(filepath, 'r', encoding='utf-8') as f:
-        return json.load(f)
+async def send_system_report():
+    cpu_percent = psutil.cpu_percent(interval=1)
+    mem = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    net = psutil.net_io_counters()
 
-def save_json(filepath, data):
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2)
-
-def now_utc_iso():
-    return datetime.now(timezone.utc).isoformat()
-
-async def async_sleep(seconds):
-    await asyncio.sleep(seconds)
-
-def chunk_list(lst, n):
-    """Split list into chunks of max size n."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+    report = (
+        f"📊 System Health Report:\n"
+        f"CPU Usage: {cpu_percent}%\n"
+        f"Memory Usage: {mem.percent}% ({mem.used // (1024**2)}MB used)\n"
+        f"Disk Usage: {disk.percent}% ({disk.used // (1024**3)}GB used)\n"
+        f"Network Sent: {net.bytes_sent // (1024**2)}MB\n"
+        f"Network Received: {net.bytes_recv // (1024**2)}MB"
+    )
+    await asyncio.sleep(0)  # ensure async signature
+    return report
