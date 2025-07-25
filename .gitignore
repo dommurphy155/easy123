@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.env
+.venv
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+*.manifest
+*.spec
+.pytest_cache/
+.tox/
+coverage.*
+htmlcov/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+.ipynb_checkpoints/
+
+# Ubuntu/Linux
+.DS_Store
+Thumbs.db
+.cache/
+.logs/
+*.log
+*.swp
+*~
+
+# Systemd
+*.service
+*.socket
+
+# Auth / Private
+cookies.json
+config.env
+*.db
+*.sqlite
+*.pem
+*.crt
+*.key
+secrets.json
+credentials.json
+
+# VSCode / IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Hugging Face + Telegram
+hf_cache/
+telegram_session/
