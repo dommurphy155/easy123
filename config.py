@@ -31,7 +31,7 @@ class Config:
     CV_TEXTFILEPATH: Optional[str] = os.getenv("CV_TEXTFILEPATH")
 
     # Maximum number of jobs to scrape per run
-    MAX_JOBS_PER_SCRAPE: int = int(os.getenv("MAX_JOBS_PER_SCRAPE", "25"))
+    MAX_JOBS_PER_SCRAPE: int = 25
 
     # Timing (UK local times in 24h format HH:MM)
     SCRAPE_TIMES: list[str] = os.getenv("SCRAPE_TIMES", "08:30,13:45,17:00").split(",")
@@ -46,4 +46,7 @@ class Config:
 config = Config()
 
 # Hardcoded coordinates for Leigh (WN7 1NX) — centerpoint for job filtering
-LEIGH_COORDINATES = (53.4975, -2.5196)
+LEIGH_COORDINATES = {
+    "lat": 53.4975,
+    "lon": -2.5196,
+}
