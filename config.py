@@ -22,19 +22,13 @@ class Config:
     LOCATION_POSTCODE: str = os.getenv("LOCATION_POSTCODE", "WN7 1NX")
     LOCATION_RADIUS_MILES: float = float(os.getenv("LOCATION_RADIUS_MILES", "5.0"))
 
-    # Leigh Coordinates for fallback when geocoding fails
-    LEIGH_COORDINATES = {
-        "lat": 53.4975,
-        "lng": -2.5194
-    }
-
     # Salary filter
     MIN_SALARY_PER_HOUR: float = float(os.getenv("MIN_SALARY_PER_HOUR", "11.0"))
     MIN_SALARY_PER_YEAR: int = int(os.getenv("MIN_SALARY_PER_YEAR", "17500"))
 
     # CV and Filtering
     CV_FILEPATH: str = os.getenv("CV_FILEPATH", "assets/cv.pdf")
-    CV_TEXTFILEPATH: Optional[str] = os.getenv("CV_TEXTFILEPATH")  # optional pre-extracted CV text
+    CV_TEXTFILEPATH: Optional[str] = os.getenv("CV_TEXTFILEPATH")
 
     # Timing (UK local times in 24h format HH:MM)
     SCRAPE_TIMES: list[str] = os.getenv("SCRAPE_TIMES", "08:30,13:45,17:00").split(",")
@@ -47,3 +41,9 @@ class Config:
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
 config = Config()
+
+# Hardcoded coordinates for Leigh (WN7 1NX) — centerpoint for job filtering
+LEIGH_COORDINATES = {
+    "lat": 53.4975,
+    "lon": -2.5196,
+}
