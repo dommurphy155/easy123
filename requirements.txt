@@ -1,0 +1,11 @@
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+httpx[http2]>=0.24.1
+python-telegram-bot>=20.3
+aiohttp>=3.8.4
+asyncio>=3.4.3
+huggingsound>=0.2.8
+transformers>=4.30.2
+torch>=2.0.1  # Use CPU-only build for micro VPS
+python-dotenv>=1.0.0
+tqdm>=4.65.0
