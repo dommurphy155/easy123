@@ -22,6 +22,12 @@ class Config:
     LOCATION_POSTCODE: str = os.getenv("LOCATION_POSTCODE", "WN7 1NX")
     LOCATION_RADIUS_MILES: float = float(os.getenv("LOCATION_RADIUS_MILES", "5.0"))
 
+    # Leigh Coordinates for fallback when geocoding fails
+    LEIGH_COORDINATES = {
+        "lat": 53.4975,
+        "lng": -2.5194
+    }
+
     # Salary filter
     MIN_SALARY_PER_HOUR: float = float(os.getenv("MIN_SALARY_PER_HOUR", "11.0"))
     MIN_SALARY_PER_YEAR: int = int(os.getenv("MIN_SALARY_PER_YEAR", "17500"))
