@@ -34,16 +34,20 @@ def _log(message):
 def find_py_files(base_dir="."):
     files = []
     for root, _, filenames in os.walk(base_dir):
-        if any(part.startswith('.') for part in Path(root).parts):
+        # Skip hidden dirs, venvs, site-packages, and anything with "venv" or "site-packages" in path
+        parts = Path(root).parts
+        if any(part.startswith('.') for part in parts):
+            continue
+        if any(part in ('venv', 'env', '__pycache__', 'site-packages') for part in parts):
             continue
         for file in filenames:
             if file.startswith('.'):
                 continue
-            if not file.endswith(".py"):
+            if not (file.endswith(".py") or file.endswith(".txt")):
                 continue
             full_path = Path(root) / file
             files.append(full_path)
-    _log(f"🔍 Found {len(files)} Python files to scan.")
+    _log(f"🔍 Found {len(files)} Python/text files to scan.")
     return files
 
 def _is_importable(module):
@@ -142,88 +146,97 @@ def fix_imports_and_formatting(file_path):
 
     source = read_file_with_fallback(file_path)
 
-    try:
-        tree = ast.parse(source, filename=str(file_path))
-    except SyntaxError as e:
-        if "indent" in e.msg.lower():
-            _log(f"⚠️ Indentation error in {file_path} line {e.lineno}: trying auto-fix")
-            print(f"⚠️ Indentation error detected, trying fix...")
+    # Only parse .py files as Python code; for .txt, skip AST parse & import fixes
+    if file_path.suffix == ".py":
+        try:
+            tree = ast.parse(source, filename=str(file_path))
+        except SyntaxError as e:
+            if "indent" in e.msg.lower():
+                _log(f"⚠️ Indentation error in {file_path} line {e.lineno}: trying auto-fix")
+                print(f"⚠️ Indentation error detected, trying fix...")
 
-            fixed_source = fix_indentation_errors(source)
-            try:
-                tree = ast.parse(fixed_source, filename=str(file_path))
-                source = fixed_source
-                _log(f"✅ Indentation error fixed in {file_path}")
-                print(f"✅ Indentation error fixed.")
-                _metrics["syntax_errors_fixed"] += 1
-            except Exception as e2:
-                _log(f"❌ Failed to fix indentation in {file_path}: {e2}")
-                print(f"❌ Could not fix indentation: {e2}")
+                fixed_source = fix_indentation_errors(source)
+                try:
+                    tree = ast.parse(fixed_source, filename=str(file_path))
+                    source = fixed_source
+                    _log(f"✅ Indentation error fixed in {file_path}")
+                    print(f"✅ Indentation error fixed.")
+                    _metrics["syntax_errors_fixed"] += 1
+                except Exception as e2:
+                    _log(f"❌ Failed to fix indentation in {file_path}: {e2}")
+                    print(f"❌ Could not fix indentation: {e2}")
+                    return False
+            else:
+                _log(f"❌ Syntax error in {file_path} line {e.lineno}:{e.offset} {e.msg}")
+                print(f"❌ Syntax error line {e.lineno}:{e.offset} - {e.msg}")
                 return False
-        else:
-            _log(f"❌ Syntax error in {file_path} line {e.lineno}:{e.offset} {e.msg}")
-            print(f"❌ Syntax error line {e.lineno}:{e.offset} - {e.msg}")
+        except Exception as e:
+            _log(f"❌ Failed to parse AST {file_path}: {e}")
+            print(f"❌ Failed to parse AST: {e}")
             return False
-    except Exception as e:
-        _log(f"❌ Failed to parse AST {file_path}: {e}")
-        print(f"❌ Failed to parse AST: {e}")
-        return False
 
-    imports = [node for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))]
-    fixed_imports = []
-    seen = set()
-    imports_fixed_this_file = 0
+        imports = [node for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))]
+        fixed_imports = []
+        seen = set()
+        imports_fixed_this_file = 0
 
-    for node in imports:
-        rel = _fix_relative_import(node)
-        if rel:
-            fixed_imports.append(rel)
-            continue
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                mod = alias.name.split('.')[0]
-                if mod not in seen:
+        for node in imports:
+            rel = _fix_relative_import(node)
+            if rel:
+                fixed_imports.append(rel)
+                continue
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    mod = alias.name.split('.')[0]
+                    if mod not in seen:
+                        if _is_importable(mod):
+                            fixed_imports.append(f"import {alias.name}\n")
+                            seen.add(mod)
+                            imports_fixed_this_file += 1
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module.split('.')[0] if node.module else ""
+                if mod and mod not in seen:
+                    names = ', '.join(n.name for n in node.names)
                     if _is_importable(mod):
-                        fixed_imports.append(f"import {alias.name}\n")
+                        fixed_imports.append(f"from {node.module} import {names}\n")
                         seen.add(mod)
                         imports_fixed_this_file += 1
-        elif isinstance(node, ast.ImportFrom):
-            mod = node.module.split('.')[0] if node.module else ""
-            if mod and mod not in seen:
-                names = ', '.join(n.name for n in node.names)
-                if _is_importable(mod):
-                    fixed_imports.append(f"from {node.module} import {names}\n")
-                    seen.add(mod)
-                    imports_fixed_this_file += 1
 
-    _metrics["imports_fixed"] += imports_fixed_this_file
+        _metrics["imports_fixed"] += imports_fixed_this_file
 
-    lines = source.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
-    non_import_lines = [line.rstrip() + "\n" for line in lines if not line.lstrip().startswith(("import ", "from "))]
+        lines = source.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
+        non_import_lines = [line.rstrip() + "\n" for line in lines if not line.lstrip().startswith(("import ", "from "))]
 
-    non_import_lines = normalize_indentation(non_import_lines)
+        non_import_lines = normalize_indentation(non_import_lines)
 
-    fixed_imports = sorted(set(fixed_imports))
+        fixed_imports = sorted(set(fixed_imports))
 
-    final_lines = []
-    for line in fixed_imports:
-        split_lines = split_long_line(line.rstrip('\n'))
-        for l in split_lines:
-            final_lines.append(l.rstrip() + "\n")
-    final_lines.append("\n")
+        final_lines = []
+        for line in fixed_imports:
+            split_lines = split_long_line(line.rstrip('\n'))
+            for l in split_lines:
+                final_lines.append(l.rstrip() + "\n")
+        final_lines.append("\n")
 
-    for line in non_import_lines:
-        split_lines = split_long_line(line.rstrip('\n'))
-        for l in split_lines:
-            final_lines.append(l.rstrip() + "\n")
+        for line in non_import_lines:
+            split_lines = split_long_line(line.rstrip('\n'))
+            for l in split_lines:
+                final_lines.append(l.rstrip() + "\n")
 
-    original_content = "".join(lines)
-    new_content = "".join(final_lines)
+        original_content = "".join(lines)
+        new_content = "".join(final_lines)
+    else:
+        # For non-python (.txt) just do indentation normalization
+        lines = source.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
+        normalized = normalize_indentation(lines)
+        original_content = "".join(lines)
+        new_content = "".join(normalized)
+
     _metrics["files_processed"] += 1
 
     if original_content != new_content:
         with open(file_path, "w", encoding="utf-8") as f:
-            f.writelines(final_lines)
+            f.writelines(new_content)
         _log(f"✅ Fixed {file_path}")
         print(f"✅ Fixed {file_path}")
         return True
@@ -254,11 +267,9 @@ def git_commit_push():
 
 def print_code_rating():
     if _metrics["files_processed"] == 0:
-        print("\n⚠️ No Python files processed, no rating available.")
+        print("\n⚠️ No Python/text files processed, no rating available.")
         return
 
-    # Scores 1-10 for each category
-    # Import hygiene: fewer fixed imports = better (scale inverted)
     imp_fix = _metrics["imports_fixed"]
     imp_score = max(10 - imp_fix, 1)
 
