@@ -1,5 +1,5 @@
-from datetime import datetime
-from pathlib import Path
+#!/usr/bin/env python3
+
 import ast
 import importlib.util
 import os
@@ -8,14 +8,13 @@ import subprocess
 import sys
 import telegram
 import traceback
-
-
-
-#!/usr/bin/env python3
+from datetime import datetime
+from pathlib import Path
 
 ROOT_DIR = Path(os.getcwd())
 LOG_FILE = ROOT_DIR / "autofix_log.txt"
-_import_cache = {}
+REPORT_FILE = ROOT_DIR / "import_debug_report.txt"
+REQUIREMENTS_FILE = ROOT_DIR / "requirements.txt"
 
 MAX_LINE_LENGTH = 79
 INDENT_SIZE = 4
@@ -33,7 +32,11 @@ _metrics = {
     "runtime_issues": 0,
 }
 
+_import_cache = {}
 _issue_report = {}
+issues = []
+fixed_files = set()
+missing_packages = set()
 
 def _log(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -48,8 +51,7 @@ def find_py_files(base_dir="."):
         # Skip hidden dirs, venvs, site-packages, __pycache__, env folders
         if any(part.startswith('.') for part in parts):
             continue
-        if any(part in ('venv', 'env', '__pycache__', 'site-packages') for part
- in parts):
+        if any(part in ('venv', 'env', '__pycache__', 'site-packages') for part in parts):
             continue
         for file in filenames:
             if file.startswith('.'):
@@ -65,7 +67,7 @@ def _is_importable(module):
     if module in _import_cache:
         return _import_cache[module]
     result = subprocess.run(
-        ["python3", "-c", f"import {module}"],
+        [sys.executable, "-c", f"import {module}"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -76,14 +78,45 @@ def _is_importable(module):
         print(f"   ❌ Module '{module}' is NOT importable")
     return _import_cache[module]
 
-def _fix_relative_import(node):
-    if isinstance(node, ast.ImportFrom) and node.level > 0:
-        prefix = "." * node.level
-        mod = node.module or ""
-        names = ', '.join(n.name for n in node.names)
-        print(f"   🔄 Found relative import: from {prefix}{mod} import {names}")
-        return f"from {prefix}{mod} import {names}\n"
-    return None
+def log_issue(file, lineno, msg):
+    issues.append(f"{file}:{lineno} - {msg}")
+
+def read_requirements():
+    if not REQUIREMENTS_FILE.exists():
+        return set()
+    with REQUIREMENTS_FILE.open("r") as f:
+        return set(line.strip().split("==")[0].lower() for line in f if line.strip() and not line.startswith("#"))
+
+def update_requirements(new_pkgs):
+    if not new_pkgs:
+        return
+    current = read_requirements()
+    with REQUIREMENTS_FILE.open("a") as f:
+        for pkg in sorted(new_pkgs):
+            if pkg not in current:
+                f.write(pkg + "\n")
+
+def pip_install(package):
+    print(f"[*] Installing missing package: {package}")
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+        print(f"[+] Installed {package}")
+        return True
+    except subprocess.CalledProcessError:
+        print(f"[!] Failed to install {package}")
+        return False
+
+def fix_indentation_errors(source):
+    lines = source.splitlines()
+    fixed_lines = []
+    for line in lines:
+        line = line.replace("\t", INDENT_STR)
+        stripped = line.lstrip()
+        leading_spaces = len(line) - len(stripped)
+        corrected_indent = (leading_spaces // INDENT_SIZE) * INDENT_SIZE
+        fixed_lines.append(INDENT_STR * (corrected_indent // INDENT_SIZE) + stripped)
+    _metrics["indentation_fixed"] += 1
+    return "\n".join(fixed_lines) + "\n"
 
 def normalize_indentation(lines):
     normalized = []
@@ -134,18 +167,43 @@ def read_file_with_fallback(path):
         with open(path, "r", encoding="latin1") as f:
             return f.read()
 
-def fix_indentation_errors(source):
+def fix_import_syntax(source):
     lines = source.splitlines()
-    fixed_lines = []
+    fixed = False
+    new_lines = []
     for line in lines:
-        line = line.replace("\t", INDENT_STR)
-        stripped = line.lstrip()
-        leading_spaces = len(line) - len(stripped)
-        corrected_indent = (leading_spaces // INDENT_SIZE) * INDENT_SIZE
-        fixed_lines.append(INDENT_STR * (corrected_indent // INDENT_SIZE) +
-stripped)
-    _metrics["indentation_fixed"] += 1
-    return "\n".join(fixed_lines) + "\n"
+        stripped = line.strip()
+        if stripped.startswith("import ") or stripped.startswith("from "):
+            # remove trailing commas in import lines
+            if stripped.endswith(","):
+                fixed = True
+                line = line.rstrip(", \t")
+        new_lines.append(line)
+    return ("\n".join(new_lines), fixed)
+
+def _fix_relative_import(node):
+    if isinstance(node, ast.ImportFrom) and node.level > 0:
+        prefix = "." * node.level
+        mod = node.module or ""
+        names = ', '.join(n.name for n in node.names)
+        print(f"   🔄 Found relative import: from {prefix}{mod} import {names}")
+        return f"from {prefix}{mod} import {names}\n"
+    return None
+
+def check_import(module, file, lineno):
+    # Ignore empty or relative imports without module name here
+    if not module:
+        return True
+    if module.startswith("."):
+        # Relative import: flag for manual check
+        log_issue(file, lineno, f"Relative import '{module}' - verify correctness.")
+        return True
+    spec = importlib.util.find_spec(module)
+    if spec is None:
+        log_issue(file, lineno, f"Missing import module '{module}'")
+        missing_packages.add(module)
+        return False
+    return True
 
 def fix_imports_and_formatting(file_path):
     print(f"\n📄 Processing {file_path}")
@@ -163,8 +221,7 @@ def fix_imports_and_formatting(file_path):
             tree = ast.parse(source, filename=str(file_path))
         except SyntaxError as e:
             if "indent" in e.msg.lower():
-                _log(f"⚠️ Indentation error in {file_path} line {e.lineno}:
-trying auto-fix")
+                _log(f"⚠️ Indentation error in {file_path} line {e.lineno}: trying auto-fix")
                 print(f"⚠️ Indentation error detected, trying fix...")
 
                 fixed_source = fix_indentation_errors(source)
@@ -179,8 +236,7 @@ trying auto-fix")
                     print(f"❌ Could not fix indentation: {e2}")
                     return False
             else:
-                _log(f"❌ Syntax error in {file_path} line {e.lineno}:{e.offset}
- {e.msg}")
+                _log(f"❌ Syntax error in {file_path} line {e.lineno}:{e.offset} {e.msg}")
                 print(f"❌ Syntax error line {e.lineno}:{e.offset} - {e.msg}")
                 return False
         except Exception as e:
@@ -188,8 +244,7 @@ trying auto-fix")
             print(f"❌ Failed to parse AST: {e}")
             return False
 
-        imports = [node for node in ast.walk(tree) if isinstance(node,
-(ast.Import, ast.ImportFrom))]
+        imports = [node for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))]
         fixed_imports = []
         seen = set()
         imports_fixed_this_file = 0
@@ -212,17 +267,14 @@ trying auto-fix")
                 if mod and mod not in seen:
                     names = ', '.join(n.name for n in node.names)
                     if _is_importable(mod):
-                        fixed_imports.append(f"from {node.module} import
-{names}\n")
+                        fixed_imports.append(f"from {node.module} import {names}\n")
                         seen.add(mod)
                         imports_fixed_this_file += 1
 
         _metrics["imports_fixed"] += imports_fixed_this_file
 
-        lines = source.replace("\r\n", "\n").replace("\r",
-"\n").splitlines(keepends=True)
-        non_import_lines = [line.rstrip() + "\n" for line in lines if not
-line.lstrip().startswith(("import ", "from "))]
+        lines = source.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
+        non_import_lines = [line.rstrip() + "\n" for line in lines if not line.lstrip().startswith(("import ", "from "))]
 
         non_import_lines = normalize_indentation(non_import_lines)
 
@@ -245,8 +297,7 @@ line.lstrip().startswith(("import ", "from "))]
 
     else:
         # For non-python (.txt) just do indentation normalization
-        lines = source.replace("\r\n", "\n").replace("\r",
-"\n").splitlines(keepends=True)
+        lines = source.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
         normalized = normalize_indentation(lines)
         original_content = "".join(lines)
         new_content = "".join(normalized)
@@ -264,11 +315,7 @@ line.lstrip().startswith(("import ", "from "))]
         return False
 
 def check_runtime_issues():
-    """Checks for runtime issues such as cookie loading and Telegram bot
-instantiation."""
-
-    # 1. Check if 'cookies' file or environment variable is present and
-readable
+    # 1. Check cookie files or env var
     cookies_paths = [ROOT_DIR / "cookies.json", ROOT_DIR / "cookies.txt"]
     cookie_found = False
     for cpath in cookies_paths:
@@ -282,49 +329,41 @@ readable
             except Exception as e:
                 _log(f"❌ Cookies file found but not readable: {cpath} - {e}")
                 _metrics["runtime_issues"] += 1
-                _issue_report.setdefault("cookies", []).append(f"Unreadable
-cookie file {cpath}")
+                _issue_report.setdefault("cookies", []).append(f"Unreadable cookie file {cpath}")
     if not cookie_found:
-        # Also check env vars for cookies
         if "COOKIES" in os.environ and os.environ["COOKIES"].strip():
             print("✅ Cookies found in environment variable COOKIES")
         else:
             _log("❌ No cookies file or environment variable 'COOKIES' found")
             _metrics["runtime_issues"] += 1
-            _issue_report.setdefault("cookies", []).append("No cookies found
-(file or env)")
+            _issue_report.setdefault("cookies", []).append("No cookies found (file or env)")
 
-    # 2. Check if Telegram token env var is set and looks valid (non-empty)
+    # 2. Check Telegram token env var
     telegram_token = os.environ.get("TELEGRAM_TOKEN", "").strip()
     if telegram_token:
         print("✅ TELEGRAM_TOKEN environment variable is set")
     else:
         _log("❌ TELEGRAM_TOKEN environment variable is not set or empty")
         _metrics["runtime_issues"] += 1
-        _issue_report.setdefault("telegram", []).append("Missing TELEGRAM_TOKEN
- env variable")
+        _issue_report.setdefault("telegram", []).append("Missing TELEGRAM_TOKEN env variable")
 
-    # 3. Check if telegram python library is importable
+    # 3. Check telegram python library importability
     if _is_importable("telegram"):
         print("✅ Telegram python package is importable")
     else:
         _log("❌ Telegram python package is NOT importable")
         _metrics["runtime_issues"] += 1
-        _issue_report.setdefault("telegram", []).append("telegram python
-package missing")
+        _issue_report.setdefault("telegram", []).append("telegram python package missing")
 
-    # 4. Try to import and instantiate a Telegram Bot object to catch basic
-issues
+    # 4. Try to instantiate Telegram Bot to check token validity
     try:
         bot = telegram.Bot(token=telegram_token)
-        # Optional: get_me to check token validity (timeout 5s)
         bot.get_me()
         print("✅ Telegram bot instantiated and token validated")
     except Exception as e:
         _log(f"❌ Failed to instantiate Telegram bot or validate token: {e}")
         _metrics["runtime_issues"] += 1
-        _issue_report.setdefault("telegram", []).append(f"Bot instantiation or
-token validation failed: {e}")
+        _issue_report.setdefault("telegram", []).append(f"Bot instantiation or token validation failed: {e}")
 
 def print_runtime_issues_report():
     if not _issue_report:
@@ -347,8 +386,7 @@ def git_commit_push():
         _log("No changes to commit.")
         return
 
-    commit_message = f"🔁 Auto import fix on {datetime.now().strftime('%Y-%m-%d
-%H:%M:%S')}"
+    commit_message = f"🔁 Auto import fix on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     try:
         subprocess.run(["git", "add", "."], check=True)
         subprocess.run(["git", "commit", "-m", commit_message], check=True)
@@ -383,57 +421,13 @@ def print_code_rating():
     runtime_issues = _metrics["runtime_issues"]
     runtime_score = max(10 - runtime_issues, 1)
 
-    avg_score = (imp_score + indent_score + line_len_score + syntax_score +
-big_file_score + runtime_score) / 6
+    avg_score = (imp_score + indent_score + line_len_score + syntax_score + big_file_score + runtime_score) / 6
 
     print("\n📊 Code Quality Rating Summary:")
     print(f" - Files processed: {_metrics['files_processed']}")
-    print(f" - Imports fixed: {_metrics['imports_fixed']} (Import hygiene
-score: {imp_score}/10)")
-    print(f" - Indentation fixes: {_metrics['indentation_fixed']} (Indentation
-consistency score: {indent_score}/10)")
-    print(f" - Line length fixes: {_metrics['line_length_fixed']} (Line length
-adherence score: {line_len_score}/10)")
-    print(f" - Syntax errors fixed: {_metrics['syntax_errors_fixed']} (Syntax
-correctness score: {syntax_score}/10)")
-    print(f" - Large files skipped: {_metrics['files_skipped_big']} (File size
-safety score: {big_file_score}/10)")
-    print(f" - Runtime issues: {_metrics['runtime_issues']} (Runtime
-environment score: {runtime_score}/10)")
-    print(f"\n=> Average code quality score: {avg_score:.2f}/10")
-
-    if avg_score >= 9:
-        print("Overall: Excellent code hygiene and formatting.")
-    elif avg_score >= 7:
-        print("Overall: Good, with minor improvements needed.")
-    elif avg_score >= 5:
-        print("Overall: Fair, needs attention in some areas.")
-    else:
-        print("Overall: Poor, requires significant fixes.")
-
-    _log(f"📊 Code Quality Rating: {avg_score:.2f}/10")
-
-def main():
-    _log("🚀 Starting autofix run...")
-    py_files = find_py_files()
-    fixed_any = False
-    for file in py_files:
-        if fix_imports_and_formatting(file):
-            fixed_any = True
-
-    if fixed_any:
-        git_commit_push()
-    else:
-        _log("No files needed fixing.")
-        print("No files needed fixing.")
-
-    print_code_rating()
-
-    _log("🔍 Starting runtime environment checks...")
-    check_runtime_issues()
-    print_runtime_issues_report()
-
-    _log("🏁 Autofix and environment check run complete.")
-
-if __name__ == "__main__":
-    main()
+    print(f" - Imports fixed: {_metrics['imports_fixed']} (Import hygiene score: {imp_score}/10)")
+    print(f" - Indentation fixes: {_metrics['indentation_fixed']} (Indentation consistency score: {indent_score}/10)")
+    print(f" - Line length fixes: {_metrics['line_length_fixed']} (Line length adherence score: {line_len_score}/10)")
+    print(f" - Syntax errors fixed: {_metrics['syntax_errors_fixed']} (Syntax correctness score: {syntax_score}/10)")
+    print(f" - Large files skipped: {_metrics['files_skipped_big']} (File size safety score: {big_file_score}/10)")
+    print(f" - Runtime issues: {_metrics['runtime_issues']} (Runtime environment score: {
