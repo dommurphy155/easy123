@@ -1,5 +1,5 @@
 import math
-from typing import Optional
+from typing import Optional, List, Dict
 from config import LEIGH_COORDINATES, config
 
 # Constants pulled from config
@@ -8,6 +8,7 @@ MIN_SALARY_PER_HOUR = config.MIN_SALARY_PER_HOUR
 MIN_SALARY_PER_YEAR = config.MIN_SALARY_PER_YEAR
 MAX_CV_SCORE_FOR_NO_SALARY = getattr(config, "MAX_CV_SCORE_FOR_NO_SALARY", 9.0)
 MIN_COMPANY_RATING = getattr(config, "MIN_COMPANY_RATING", 6.0)
+
 
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Distance in miles between two lat/lon points."""
@@ -18,17 +19,20 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     a = (math.sin(dphi / 2) ** 2) + math.cos(phi1) * math.cos(phi2) * (math.sin(dlambda / 2) ** 2)
     return 2 * R * math.asin(math.sqrt(a))
 
+
 def is_within_radius(job_lat: float, job_lon: float,
                      center_lat: float = LEIGH_COORDINATES["lat"],
                      center_lon: float = LEIGH_COORDINATES["lon"],
                      max_distance: float = MAX_DISTANCE_MILES) -> bool:
     return haversine(job_lat, job_lon, center_lat, center_lon) <= max_distance
 
+
 def is_part_time(job_type: Optional[str]) -> bool:
     if not job_type:
         return False
     jt = job_type.lower()
     return "part‑time" in jt or "part time" in jt
+
 
 def salary_meets_threshold(salary_hourly: Optional[float] = None,
                            salary_yearly: Optional[float] = None,
@@ -40,10 +44,12 @@ def salary_meets_threshold(salary_hourly: Optional[float] = None,
     # If no salary info, require CV score cutoff
     return cv_score >= MAX_CV_SCORE_FOR_NO_SALARY
 
+
 def company_rating_meets(rating: Optional[float]) -> bool:
     if rating is None:
         return True
     return rating >= MIN_COMPANY_RATING
+
 
 def passes_filters(job: dict, cv_score: float,
                    center_lat: float = LEIGH_COORDINATES["lat"],
@@ -67,3 +73,12 @@ def passes_filters(job: dict, cv_score: float,
     if not company_rating_meets(job.get("company_rating")):
         return False
     return True
+
+
+# TEMPORARY SCORING PLACEHOLDER
+async def filter_and_score_jobs(jobs: List[Dict]) -> List[Dict]:
+    """
+    TEMP PLACEHOLDER – Replace with proper HuggingFace scoring later.
+    Currently just sorts jobs by 'score' field (descending) and returns top 8.
+    """
+    return sorted(jobs, key=lambda x: x.get("score", 0), reverse=True)[:8]
