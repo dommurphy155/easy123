@@ -13,9 +13,30 @@ from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,
 )
+
 from config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, MAX_JOBS_PER_BATCH
 from filters import filter_and_score_jobs
 from utils import load_jobs_from_db, mark_job_as_declined, get_job_by_id
+
+
+class TelegramJobBot:
+    @staticmethod
+    def format_job_batch_static(jobs):
+        messages = []
+        for job in jobs:
+            msg = f"*{job['title']}*\n{job['company']} - {job['location']}\n💰 {job.get('salary', 'N/A')}\n[Apply Here]({job['url']})"
+            messages.append(msg)
+        return messages
+
+    @staticmethod
+    def make_inline_keyboard_static(jobs):
+        keyboard = []
+        for job in jobs:
+            keyboard.append([
+                InlineKeyboardButton("✅ Accept", callback_data=f"accept:{job['id']}"),
+                InlineKeyboardButton("❌ Decline", callback_data=f"decline:{job['id']}")
+            ])
+        return [InlineKeyboardMarkup(keyboard[i:i+1]) for i in range(len(keyboard))]
 
 
 class TelegramBot:
@@ -56,7 +77,7 @@ class TelegramBot:
         await self.send_job(job)
 
     async def send_job(self, job):
-        message = f"**{job['title']}** at *{job['company']}*\n\n"
+        message = f"*{job['title']}* at _{job['company']}_\n\n"
         message += f"💷 Salary: {job.get('salary', 'N/A')}\n"
         message += f"📍 Location: {job.get('location', 'N/A')}\n"
         message += f"🔗 [Apply Here]({job['url']})"
