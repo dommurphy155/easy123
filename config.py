@@ -2,7 +2,11 @@ import os
 import pytz
 from dotenv import load_dotenv
 
-load_dotenv()  # Load environment variables from a .env file if present
+load_dotenv()  # Load environment variables from .env if present
+
+# Direct constants for safe import
+LEIGH_COORDINATES: dict = {"lat": 53.4981, "lon": -2.5197"}
+TIMEZONE = pytz.timezone("Europe/London")
 
 class Config:
     # Telegram Bot
@@ -18,11 +22,9 @@ class Config:
     CV_FILEPATH: str = os.getenv("CV_FILEPATH", "assets/cv.pdf")
     CV_TEXTFILEPATH: str = os.getenv("CV_TEXTFILEPATH", "")
 
-    # Geolocation for filtering
-    LEIGH_COORDINATES: dict = {"lat": 53.4981, "lon": -2.5197}
+    # Geolocation Settings
     LOCATION_POSTCODE: str = os.getenv("LOCATION_POSTCODE", "WN7 1NX")
     LOCATION_RADIUS_MILES: float = float(os.getenv("LOCATION_RADIUS_MILES", "5.0"))
-    TIMEZONE = pytz.timezone("Europe/London")
 
     # Salary Thresholds
     MIN_SALARY_PER_HOUR: float = float(os.getenv("MIN_SALARY_PER_HOUR", "11.0"))
