@@ -9,7 +9,7 @@ from telegram.ext import (
 )
 from hf_ranker import HFMatcher
 from scraper.indeed_scraper import scrape_indeed_jobs
-from config import config, LEIGH_COORDINATES
+from config import config
 from filters import passes_filters
 from telegram_bot import TelegramJobBot
 
