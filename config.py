@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env if present
 
 # Direct constants for safe import
-LEIGH_COORDINATES: dict = {"lat": 53.4981, "lon": -2.5197"}
+LEIGH_COORDINATES: dict = {"lat": 53.4981, "lon": -2.5197}
 TIMEZONE = pytz.timezone("Europe/London")
 
 class Config:
