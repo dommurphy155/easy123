@@ -1,0 +1,28 @@
+🐞 Debugging project at: /home/ubuntu/easy123
+
+🚨 === Checking Critical Environment Variables ===
+❌ MISSING: 'TELEGRAM_TOKEN' is NOT set!
+❌ MISSING: 'TELEGRAM_CHAT_ID' is NOT set!
+❌ MISSING: 'HF_API_KEY' is NOT set!
+❌ MISSING: 'INDEED_COOKIES_PATH' is NOT set!
+
+🚨 === Scanning .py and .txt Files ===
+❌ Import error: /home/ubuntu/easy123/telegram_bot.py: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/home/ubuntu/easy123/telegram_bot.py", line 17, in <module>
+    from config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, MAX_JOBS_PER_BATCH
+ImportError: cannot import name 'TELEGRAM_TOKEN' from 'config' (/home/ubuntu/easy123/config.py)
+❌ Import error: /home/ubuntu/easy123/hf_ranker.py: ❌ Import timeout.
+❌ Import error: /home/ubuntu/easy123/scheduler.py: ❌ Import timeout.
+❌ Import error: /home/ubuntu/easy123/bot_runner.py: ❌ Import timeout.
+
+🚨 === Checking config.py File ===
+✅ config.py looks OK.
+🚨 === Suggested Fixes ===
+⚠️ Set env var 'TELEGRAM_TOKEN' in .env or system env.
+⚠️ Set env var 'TELEGRAM_CHAT_ID' in .env or system env.
+⚠️ Set env var 'HF_API_KEY' in .env or system env.
+⚠️ Set env var 'INDEED_COOKIES_PATH' in .env or system env.
+⚠️ Fix all syntax/import errors above.
+
+🚨 === Attempting Git Commit & Push ===
