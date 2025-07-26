@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()  # Load environment variables from a .env file if present
 
-
 class Config:
     # Telegram Bot
     TELEGRAM_TOKEN: str = os.getenv("TELEGRAM_TOKEN", "")
@@ -46,6 +45,5 @@ class Config:
     INDEED_COOKIES_PATH: str = os.getenv("INDEED_COOKIES_PATH", "cookies.json")
     SYSTEM_REPORT_INTERVAL_HOURS: int = int(os.getenv("SYSTEM_REPORT_INTERVAL_HOURS", "5"))
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
-
 
 config = Config()
