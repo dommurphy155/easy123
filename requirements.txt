@@ -2,3 +2,5 @@ python-telegram-bot[job-queue]>=20.0
 httpx
 beautifulsoup4
 transformers
+sentence-transformers>=2.0.0
+torch>=1.13
