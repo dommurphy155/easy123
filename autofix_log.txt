@@ -1,3 +1,0 @@
-[2025-07-26 00:26:13] 🚀 Starting autofix run...
-[2025-07-26 00:26:13] 🔍 Found 3 Python/text files to scan.
-[2025-07-26 00:26:15] ✅ Fixed debugger.py
